@@ -36,7 +36,7 @@ while IFS= read -r sub ; do
 				"$dataDir"/${sub}/T1w/${sub}/surf/"$hemi".white \
 				"$num_surfs" \
 				"$outDir"/"$num_surfs"surfs/"$hemi"_equiv_"$num_surfs"surfs \
-                --software freesurfer \
+                                --software freesurfer \
 				--subject "$sub"
             done
             
