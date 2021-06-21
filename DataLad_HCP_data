@@ -1,0 +1,14 @@
+#create subdirectories
+for i in * ; do datalad get -n ${i}/MNINonLinear/fsaverage_LR32k
+#download specific files needed for equivolumetric surfaces 
+    datalad get ${i}/MNINonLinear/fsaverage_LR32k/${i}.MyelinMap_MSMAll.32k_fs_LR.dscalar.nii 
+    datalad get ${i}/T1w/${i}/surf/lh.area.pial 
+    datalad get ${i}/T1w/${i}/surf/rh.area.pial
+    datalad get ${i}/T1w/${i}/surf/lh.area
+    datalad get ${i}/T1w/${i}/surf/rh.area 
+    datalad get ${i}/T1w/${i}/surf/rh.white
+    datalad get ${i}/T1w/${i}/surf/lh.white 
+    datalad get ${i}/T1w/${i}/surf/lh.pial
+    datalad get ${i}/T1w/${i}/surf/rh.pial 
+    datalad get ${i}/T1w/${i}/label/rh.cortex.label
+    datalad get ${i}/T1w/${i}/label/lh.cortex.label; done
