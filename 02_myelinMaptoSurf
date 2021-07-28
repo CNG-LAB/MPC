@@ -1,0 +1,72 @@
+#! /bin/sh
+#
+# This script takes a volumetric myelin sensitive image, and evaluates
+# the intensity values along precreated intracortical surfaces. Additionally,
+# it will map a annotation file to the individual subject space.
+#
+#
+# Set up variables
+# subject directory within BIDS structure  
+
+baseDir=/data/pt_02319/Anna/MPC/datalad_project/DataLad-101/human-connectome-project-openaccess/HCP1200/100206/
+myeImage=/data/pt_02319/Anna/MPC/datalad_project/DataLad-101/human-connectome-project-openaccess/HCP1200/100206/MNINonLinear/fsaverage_LR32k/100206.MyelinMap_MSMAll.32k_fs_LR.dscalar.nii
+lhAnnot=/data/pt_02319/Anna/MPC/02_myelinMaptoSurf.sh/lh.sjh.annot
+rhAnnot=/data/pt_02319/Anna/MPC/02_myelinMaptoSurf.sh/rh.sjh.annot
+
+# set up and make necessary subfolders
+tmpDir="$baseDir"/tmpProcessingMyelin
+warpDir="$baseDir"/xfms
+for thisDir in $tmpDir $warpDir ; do
+        [[ ! -d "$thisDir" ]] && mkdir "$thisDir"
+done
+
+subject=$(basename "$baseDir")
+export SUBJECTS_DIR="$baseDir"/surfaces
+
+# Register to Freesurfer space
+bbregister --s "$subject" --mov "$myeImage" --reg "$warpDir"/"$subject"_mye2fs_bbr.lta --init-fsl --t1
+bbregister --s "100206" --mov /data/pt_02319/Anna/MPC/datalad_project/DataLad-101/human-connectome-project-openaccess/HCP1200/100206/MNINonLinear/fsaverage_LR32k/100206.MyelinMap_MSMAll.32k_fs_LR.dscalar.nii --reg /data/pt_02319/Anna/MPC/datalad_project/DataLad-101/human-connectome-project-openaccess/HCP1200/100206/xfms/100206_mye2fs_bbr.lta --init-fsl --t1
+
+# Register to surface
+for num_surfs in $(seq 10 1 30) ; do
+
+	for hemi in lh rh; do
+
+		rm -f "$SUBJECTS_DIR"/equivSurfs/"$num_surfs"surfs/"$hemi"_equiv_"$num_surfs"surfs1.0.pial
+		rm -f "$SUBJECTS_DIR"/equivSurfs/"$num_surfs"surfs/"$hemi"_equiv_"$num_surfs"surfs0.0.pial
+
+		# find all equivolumetric surfaces and list by creation time
+		x=$(ls -t "$SUBJECTS_DIR"/equivSurfs/"$num_surfs"surfs/${hemi}*)
+
+		for n in $(seq 1 1 "$num_surfs") ; do
+
+			# select a surfaces and copy to the freesurfer directory
+			which_surf=$(sed -n "$n"p <<< "$x")
+			cp "$which_surf" "$SUBJECTS_DIR"/equivSurfs/"$num_surfs"surf
+
+		    # project intensity values from volume onto the surface
+              mri_vol2surf \
+					 --mov "$myeImage" \
+					 --reg "$warpDir"/"$subject"_mye2fs_bbr.lta \
+					 --hemi "$hemi"h \
+					 --out_type mgh \
+					 --trgsubject "$subject" \
+					 --out "$tmpDir"/"$hemi"h."$n".mgh \
+					 --surf "$n"by"$num_surfs"surf
+
+		done
+
+	done
+
+done 
+
+# create symbolic link to fsaverage within the subject's directory
+ln -s $/data/pt_02319/schaare/utils/surfstat/FreeSurfer5.3/fsaverage $SUBJECTS_DIR
+
+# map annotation to subject space
+mri_surf2surf --srcsubject fsaverage --trgsubject $subject --hemi lh \
+    --sval-annot $lhAnnot \
+    --tval       $SUBJECTS_DIR/"$subject"/label/lh.sjh.annot
+mri_surf2surf --srcsubject fsaverage --trgsubject $subject --hemi rh \
+    --sval-annot $rhAnnot \
+    --tval       $SUBJECTS_DIR/"$subject"/label/rh.sjh.annot
